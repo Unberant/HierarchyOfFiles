@@ -1,29 +1,11 @@
 #include "FilesHierarchyPattern.h"
-namespace  fs = std::filesystem;
-using std::endl;
-using std::cout;
-using namespace std::chrono;
+//namespace  fs = std::filesystem;
+//using std::endl;
+//using std::cout;
+//using namespace std::chrono;
 
-//fs::path filepath = fs::current_path(); - путь
-//
-//fs::create_directories("root"); - сделать папку
-//fs::create_directories("root/branch1");
-//
-//fs::path a = "root/abc.txt"; - путь 
-//fs::path b = "ex.txt";
-//
-//std::ofstream(a) << "test1"; - сделать файл 
-//std::ofstream(b) << "tes2";
-
-
-// Программа выводит время последней модификации файла
-//  в виде количества секунд с 1 января 1970 года.
 int main()
 {
-    std::wcout << "preferred_separator: " << fs::path::preferred_separator << std::endl;
-
-    fs::path p = fs::current_path();
-
 	//iBaseFileComponent* tree = new eFolderComposite("root");
 	//tree->printLastModificateTime();
 	//iBaseFileComponent* br1 = new eFolderComposite("root/", "br1");
@@ -31,52 +13,58 @@ int main()
 	//iBaseFileComponent* fil1 = new eFileLeaf("root/", "abc.tnt");
 	//fil1->printLastModificateTime();
 
-	eElement trr(new eFolderComposite("root1"));
-	trr.printCreationDate();
-	eElement tr2r(new eFolderComposite("root1/br1"));
-	tr2r.printCreationDate();
+	eElement tree1(new eFolderComposite("root1"));
+	eElement branch1(new eFolderComposite("root1/branch1"));
+	eElement branch2(new eFolderComposite("root1/", "branch2"));
+	eElement branch3(new eFolderComposite("root1/branch2/", "branch3"));
 
-	eElement fil2(new eFileLeaf("root1/", "abc.txt"));
-	fil2.printCreationDate();
+	eElement leaf1(new eFileLeaf("root1/", "leaf1.txt"));
+	eElement leaf2(new eFileLeaf("root1/branch1/", "leaf2.h"));
+	eElement leaf3(new eFileLeaf("root1/branch1/", "leaf3.c"));
+	eElement leaf4(new eFileLeaf("root1/branch2/", "leaf4.cpp"));
 
- //   std::string name = "root2";
- //   std::string slesh = "/";
- //   fs::path fold = name + slesh;
+	tree1.addToFolder(branch1);
+	branch1.addToFolder(leaf2);
+	branch1.addToFolder(leaf3);
 
- //   std::string namefile = "abc";
- //   std::string extencial = ".txt";
+	tree1.addToFolder(leaf1);
 
- //   fs::path file1 = name + slesh + namefile + "1" + extencial;
- //   fs::path file2 = name + slesh + namefile + "2" + extencial;
+	tree1.addToFolder(branch2);
+	branch2.addToFolder(branch3);
+	branch2.addToFolder(leaf4);
 
-	//fs::remove_all(fold);
-	//fs::create_directories(fold);
+	tree1.printDescription();
+	std::cout << "\n============\n";
 
-	//std::ofstream(file1) << "1234567890";
-	//std::ofstream(file2) << "-------";
+	//eElement branch22 = branch2.getObject("root1/leaf1.txt"); // 1
+	//eElement leaf11 = leaf1.getObject("root1/leaf1.txt"); // 3
 
- //   time_t s = to_time_t( fs::last_write_time(file1));
-	//cout << std::ctime(&s) << endl;
-	//cout << to_time_t(fs::last_write_time(file1)) << endl;
+	//std::cout << tree1.getRootFolder() << std::endl; // 3 
+	//std::cout << branch1.getRootFolder() << std::endl;
+	//std::cout << branch2.getRootFolder() << std::endl;
+	//std::cout << leaf1.getRootFolder() << std::endl;
+	//std::cout << leaf4.getRootFolder() << std::endl;
 
- //   cout << fs::file_size(fold) << endl;
- //   cout << fs::file_size(file1) << endl;
- //   cout << fs::file_size(file2) << endl;
+	//std::cout << std::boolalpha; // 4
+	//std::cout << "branch1[folder] is folder. it's " << branch1.isFolder() << std::endl;
+	//std::cout << "leaf3[leaf3.c] is folder. it's " << leaf3.isFolder() << std::endl;
+	//std::cout << std::noboolalpha;
+
+	//std::cout << "branch1[folder] name: " << branch1.getName() << std::endl; // 5.1
+	//std::cout << "leaf1[leaf.txt] name: " << leaf1.getName() << std::endl;
+	//std::cout << "branch1[folder] creation date: " << branch1.getCreationDate() << std::endl; // 5.2
+	//std::cout << "branch1[folder] last modification date: " << branch1.getLastModificationDate() << std::endl; // 5.3
+	//std::cout << "leaf1[leaf.txt] creation date: " << leaf1.getCreationDate() << std::endl;
+	//std::cout << "tree1 size (size of all files in this folder): " << tree1.getSizeInBytes() << std::endl; // 5.4
+	//std::cout << "leaf1 size: " << leaf1.getSizeInBytes() << std::endl; // 5.4
+	//std::cout << "in tree1 " << tree1.getNumberOfFiles() << std::endl; // 5.5
+	//std::cout << "in branch2 " << branch2.getNumberOfFiles() << std::endl; // 5.5
+
+	//eElement tree2(eElement::createFolder("", "root2")); // optional initialization option
+	//eElement new_leaf1(eElement::createFile("root2/", "new_leaf1.txt",0));
+	//tree2.addToFolder(new_leaf1);
+	//tree2.printDescription();
 
 
-    fs::path file_new = fs::current_path();
-
- //   std::ofstream(file1).put('1');
- //   s = to_time_t(fs::last_write_time(file1));
- //   cout << std::ctime(&s) << endl;
-//    fs::path p = fs::current_path() / "sandbox";
-//    fs::create_directories(p / "from");
-//    std::ofstream(p / "from/file1.txt").put('a');
-//    fs::create_directory(p / "to");
-//
-//    // fs :: rename (p / "from / file1.txt", p / "to /"); // ошибка: в каталог
-//    fs::rename(p / "from/file1.txt", p / "to/file2.txt"); // OK
-//// fs :: rename (p / "от", p / "до"); // ошибка: не пусто
-//    fs::rename(p / "from", p / "to/subdir"); // OK
 }
 
