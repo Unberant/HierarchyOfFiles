@@ -93,34 +93,33 @@ public:
 		filePath = _path;
 	}
 
-	virtual void addToFolder(iBaseFileComponent* component)			{};
-	virtual void removeFromFolder(iBaseFileComponent* component)	{};
+	virtual void addConnection(iBaseFileComponent* component) = 0;
+	virtual void deleteConnection(iBaseFileComponent* component) = 0;
 
 	virtual Iterator<iBaseFileComponent, std::list<iBaseFileComponent*>>* create_iterator()
 	{
 		return nullptr;
 	}
 
-	void setParent(iBaseFileComponent* _parent)
-	{
-		this->parent = _parent;
-	}
 	iBaseFileComponent* getParent() const
 	{
 		return parent;
 	}
+	void setParent(iBaseFileComponent* _parent)
+	{
+		this->parent = _parent;
+	}
 
-	virtual void setName(std::string) = 0;
-	virtual std::string getName() = 0;
+	virtual std::string getName() const = 0;
 
-	std::string getFullPath()
+	std::string getFullPath() const
 	{
 		return filePath.u8string();
 	}
 
 	virtual iBaseFileComponent* getObject(fs::path _path) = 0;
 
-	std::string getRootFolder()
+	std::string getRootFolder() const
 	{
 		std::string strPath = filePath.string();
 		size_t sleshIndex = strPath.find_first_of("/");
@@ -130,42 +129,47 @@ public:
 			return strPath.substr(0,sleshIndex);
 	}
 
-	virtual bool isFolder() = 0;
+	virtual bool isFolder() const = 0;
 
 	virtual void printDescription() = 0;
 
-	std::string getCreationDate()
+	std::string getCreationDate() const 
 	{
-		time_t s = to_time_t(fs::last_write_time(filePath));
-		return  std::ctime(&s);
+		return  std::ctime(&fileCreationDate);
 	}
-	void printCreationDate()
+	void printCreationDate() const
 	{
-		time_t s = to_time_t(fs::last_write_time(filePath));
-		std::cout << std::ctime(&s) << std::endl;
+		std::cout << filePath << " created on " << std::ctime(&fileCreationDate) << std::endl;
 	}
 
-	//  to work
-	std::string getLastModificationDate()  
+	std::string getLastModificationDate() const   
 	{
-		time_t s = to_time_t(fs::last_write_time(filePath));
-		return  std::ctime(&s);
+		return  std::ctime(&fileLastModificationDate);
+	}
+	void printLastModificationDate() const
+	{
+		std::cout << filePath << " modified on " << std::ctime(&fileLastModificationDate) << std::endl;
 	}
 
-	virtual unsigned int getSizeInBytes() = 0;
-	virtual unsigned int getNumberOfFiles() = 0;
+	virtual unsigned int getSizeInBytes()	= 0;
+	virtual unsigned int getNumberOfFiles()	= 0;
 
-	//void createFolder(std::string _path, std::string _name)
-	//{
-	//	iBaseFileComponent* newFolder = new("root");
-	//}
+	virtual iBaseFileComponent* createFolder(std::string _path, std::string _folderName) = 0;
+	virtual iBaseFileComponent* createFile(std::string _path, std::string _fileName, unsigned int _size) = 0;
 
-	//void createFile(std::string _path, std::string _name, unsigned int _size)
-	//{
-	//	std::cout << "new file";
-	//	iBaseFileComponent* fil1 = new eFileLeaf("root/", "abc.tnt");
+	void modifyFileSize(const unsigned int& _newsize)
+	{
+		fs::resize_file(filePath, _newsize);
+		setLastModificationDate(fs::last_write_time(filePath));
+	}
 
-	//}
+	void removeFileFromSystem(iBaseFileComponent* component)
+	{
+		this->deleteConnection(component);
+		fs::remove_all(component->filePath);
+	}
+
+	virtual void rename(const std::string& _newName) = 0;
 
 	//virtual iBaseFileComponent* clone() {
 	//	return nullptr;
@@ -183,29 +187,40 @@ protected:
 		std::cout << std::string(nestingLevel,'-');
 	}
 
+	void setCreationDate(const std::filesystem::file_time_type& _creationDate)
+	{
+		fileCreationDate = to_time_t(_creationDate);
+	}
+	void setLastModificationDate(const std::filesystem::file_time_type& _modifDate)
+	{
+		this->fileLastModificationDate = to_time_t(_modifDate);
+	}
+
 	iBaseFileComponent* parent;
 	fs::path filePath;
-	time_t fileCreaitonDate;
+	time_t fileCreationDate;
 	time_t fileLastModificationDate;
 	static int nestingLevel;
 };
 
 class  eFolderComposite : public iBaseFileComponent
 {
-	using inhereted = iBaseFileComponent*;
+	using inherited = iBaseFileComponent*;
 public:
 	virtual ~eFolderComposite() = default;
 
 	eFolderComposite(std::string _path, std::string _folderName): iBaseFileComponent(_path + _folderName)
 	{
 		fs::create_directories(_path + _folderName);
-		fileCreaitonDate = to_time_t(fs::last_write_time(filePath));
+		setCreationDate(fs::last_write_time(filePath));
+		this->fileLastModificationDate = this->fileCreationDate;
 		folderName = _folderName;
 	}
 	eFolderComposite(std::string _folderName) : iBaseFileComponent(_folderName)
 	{
 		fs::create_directories(fs::current_path() / _folderName);
-		fileCreaitonDate = to_time_t(fs::last_write_time(filePath));
+		setCreationDate(fs::last_write_time(filePath));
+		this->fileLastModificationDate = this->fileCreationDate;
 
 		size_t sleshIndex = _folderName.find_last_of("/");
 		folderName = _folderName.substr(sleshIndex + 1, _folderName.size() - sleshIndex);
@@ -216,22 +231,27 @@ public:
 		return new Iterator<iBaseFileComponent, std::list<iBaseFileComponent*>>(this->children);
 	}
 
-	void addToFolder(iBaseFileComponent* _component) override
+	void addConnection(iBaseFileComponent* _component) override
 	{
 		this->children.push_back(_component);
 		_component->setParent(this);
 	}
-	void removeFromFolder(iBaseFileComponent* _component) override
+	void deleteConnection(iBaseFileComponent* _component) override
 	{
-		children.remove(_component);
-		_component->setParent(nullptr);
+		Iterator<iBaseFileComponent, std::list<inherited>>* it = create_iterator();
+		for (it->first(); !it->isDone(); it->next()) 
+		{
+			//std::cout << _component->getName() << " =?= " << it->current()->getName() << std::endl;
+			it->current()->deleteConnection(_component);
+			if (_component->getName() == it->current()->getName())
+			{
+				children.remove(it->current());
+				return;
+			}
+		}
 	}
 
-	void setName(std::string _folderName) override
-	{
-		folderName = _folderName;
-	}
-	std::string getName() override
+	std::string getName() const override
 	{
 		return folderName;
 	}
@@ -241,18 +261,19 @@ public:
 		return this;
 	}
 
-	bool isFolder() override
+	bool isFolder() const override
 	{
 		return true;
 	}
 
-	virtual void printDescription()
+	virtual void printDescription() 
 	{
 		printIndentsByNestingLevel();
 		++nestingLevel;
 		std::cout << folderName << " [folder] " <<  filePath << std::endl;
-		Iterator<iBaseFileComponent, std::list<inhereted>>* it = create_iterator();
-		for (it->first(); !it->isDone(); it->next()) {
+		Iterator<iBaseFileComponent, std::list<inherited>>* it = create_iterator();
+		for (it->first(); !it->isDone(); it->next()) 
+		{
 			it->current()->printDescription();
 		}
 		--nestingLevel;
@@ -261,8 +282,9 @@ public:
 	unsigned int getSizeInBytes() override
 	{
 		unsigned int sizeOfAllFiles = 0;
-		Iterator<iBaseFileComponent, std::list<inhereted>>* it = create_iterator();
-		for (it->first(); !it->isDone(); it->next()) {
+		Iterator<iBaseFileComponent, std::list<inherited>>* it = create_iterator();
+		for (it->first(); !it->isDone(); it->next()) 
+		{
 			sizeOfAllFiles += it->current()->getSizeInBytes();
 		}
 		return sizeOfAllFiles;
@@ -271,23 +293,39 @@ public:
 	unsigned int getNumberOfFiles() override
 	{
 		unsigned int numberOfFiles = 0;
-		Iterator<iBaseFileComponent, std::list<inhereted>>* it = create_iterator();
-		for (it->first(); !it->isDone(); it->next()) {
+		Iterator<iBaseFileComponent, std::list<inherited>>* it = create_iterator();
+		for (it->first(); !it->isDone(); it->next()) 
+		{
 			++numberOfFiles;
 		}
 		return numberOfFiles;
 	}
 
-	//void createFolder(std::string _path, std::string _folderName) 
-	//{
-	//	std::cout << "new folder";
-	//	//fs::create_directories(_path + _folderName);
-	//	//fileCreaitonDate = to_time_t(fs::last_write_time(filePath));
-	//	//folderName = _folderName;
-	//}
+	iBaseFileComponent* createFolder(std::string _path, std::string _folderName) override;
+	iBaseFileComponent* createFile(std::string _path, std::string _fileName, unsigned int _size) override;
+
+	void rename(const std::string& _newName) override
+	{
+		fs::path newPath;
+		std::string strPath = filePath.string();
+		size_t sleshIndex = strPath.find_last_of("/");
+
+		if (sleshIndex == string::npos)
+			newPath = _newName;
+		else
+		{
+			strPath.erase(strPath.begin() + sleshIndex + 1, strPath.end());
+			newPath = strPath + _newName;
+		}
+
+		fs::rename(filePath, newPath);
+
+		this->filePath = newPath;
+		this->folderName = _newName;
+	}
 
 private:
-	std::list<inhereted> children;
+	std::list<inherited> children;
 	string folderName;
 };
 
@@ -300,15 +338,24 @@ public:
 	eFileLeaf(std::string _path, std::string _fileName) : iBaseFileComponent(_path + _fileName)
 	{
 		std::ofstream(_path + _fileName);
-		fileCreaitonDate = to_time_t(fs::last_write_time(filePath));
+		setCreationDate(fs::last_write_time(filePath));
+		this->fileLastModificationDate = this->fileCreationDate;
 		file.fullname = _fileName;
 	}
 
-	void setName(std::string _folderName) override
+	void addConnection(iBaseFileComponent* _component) override
 	{
-		file.fullname = _folderName;
+		std::cout << "you can't link a " << file.fullname << " to " << _component->getName()
+				<< " , call this method from a folder object" << std::endl;
 	}
-	std::string getName() override
+
+	void deleteConnection(iBaseFileComponent* _component) override
+	{
+		std::cout << "you can't unlink a " << file.fullname << " from " << _component->getName()
+			<< " , call this method from a folder object" << std::endl;
+	}
+
+	std::string getName() const override
 	{
 		return file.fullname;
 	}
@@ -318,7 +365,7 @@ public:
 		return this;
 	}
 
-	bool isFolder() override
+	bool isFolder() const override
 	{
 		return false;
 	}
@@ -329,7 +376,7 @@ public:
 		std::cout << file.getFullName() << " [file." << file.getExtensionWithoutDot() << "]" << std::endl;
 	}
 
-	unsigned int getSizeInBytes()
+	unsigned int getSizeInBytes() override
 	{
 		return fs::file_size(filePath);
 	}
@@ -339,14 +386,44 @@ public:
 		return 0;
 	}
 
-	//void createFile(std::string _path, std::string _name, unsigned int _size)
-	//{
-	//	std::cout << "new file";
+	iBaseFileComponent* createFolder(std::string _path, std::string _folderName) override
+	{
+		std::cout << "you can not create folder in file";
+		return nullptr;
+	}
+	iBaseFileComponent* createFile(std::string _path, std::string _fileName, unsigned int _size) override
+	{
+		std::cout << "you can not create file in file";
+		return nullptr;
+	}
 
-	//}
+	void rename(const std::string& _newName) override
+	{
+		fs::path newPath;
+		std::string strPath = filePath.string();
+		size_t sleshIndex = strPath.find_last_of("/");
+
+		if (sleshIndex == string::npos)
+			newPath = _newName;
+		else
+		{
+			strPath.erase(strPath.begin() + sleshIndex + 1, strPath.end());
+			newPath = strPath + _newName;
+		}
+
+		fs::rename(filePath, newPath);
+
+		this->filePath = newPath;
+		this->file.fullname = _newName;
+	}
 private:
 	eFileData file;
 };
+
+void move(iBaseFileComponent* _file, eFolderComposite* _to)
+{
+}
+
 
 class eElement {
 public:
@@ -354,13 +431,13 @@ public:
 
 	eElement(iBaseFileComponent* newObject): baseElement(newObject) {}
 
-	void addToFolder(const eElement& that)
+	void addConnection(const eElement& that)
 	{
-		baseElement->addToFolder(that.baseElement);
+		baseElement->addConnection(that.baseElement);
 	}
-	void removeFromFolder(const eElement& that)
+	void deleteConnection(const eElement& that)
 	{
-		baseElement->removeFromFolder(that.baseElement);
+		baseElement->deleteConnection(that.baseElement);
 	}
 
 	void printDescription()
@@ -373,36 +450,40 @@ public:
 		return eElement(baseElement->getObject(_path));
 	}
 
-	std::string getRootFolder()
+	std::string getRootFolder() const
 	{
 		return baseElement->getRootFolder();
 	}
 
-	bool isFolder()
+	bool isFolder() const
 	{
 		return baseElement->isFolder();
 	}
 
-	std::string getName()
+	std::string getName() const
 	{
 		return baseElement->getName();
 	}
 
-	std::string getCreationDate()
+	std::string getCreationDate() const
 	{
 		return baseElement->getCreationDate();
 	}
-	void printCreationDate()
+	void printCreationDate() const
 	{
 		baseElement->printCreationDate();
 	}
 
-	std::string getLastModificationDate()
+	std::string getLastModificationDate() const
 	{
 		return baseElement->getLastModificationDate();
 	}
+	void printLastModificationDate() const
+	{
+		baseElement->printLastModificationDate();
+	}
 
-	unsigned int getSizeInBytes() 
+	unsigned int getSizeInBytes()
 	{
 		return baseElement->getSizeInBytes();
 	}
@@ -412,27 +493,40 @@ public:
 		return baseElement->getNumberOfFiles();
 	}
 
-	//static iBaseFileComponent* createFolder(std::string _path, std::string _name)
-	//{
-	//	//baseElement->createFolder(_path, _name);
-	//	return new eFolderComposite(_path, _name);
-	//}
-	//static iBaseFileComponent* createFile(std::string _path, std::string _name, unsigned int _size)
-	//{
-	//	//baseElement->createFile(_path, _name, _size);
-	//	return new eFileLeaf(_path, _name);
-	//}
+	eElement createFolder(std::string _path, std::string _folderName)
+	{
+		eElement newFolder(baseElement->createFolder(_path, _folderName));
+		this->addConnection(newFolder);
+		return newFolder;
+	}
 
-	//void createFolder(std::string _path, std::string _name)
-	//{
-	//	iBaseFileComponent* newFolder = new eFolderComposite(_path,_name);
-	//}
+	eElement creteFile(std::string _path, std::string _fileName, unsigned int _size)
+	{
+		eElement newFile(baseElement->createFile(_path,_fileName,_size));
+		this->addConnection(newFile);
+		return newFile;
+	}
 
-	//void createFile(std::string _path, std::string _name, unsigned int _size) 
-	//{
-	//	std::cout << "new file";
+	void modifyFileSize(const unsigned int& _newsize)
+	{
+		baseElement->modifyFileSize(_newsize);
+	}
 
-	//}
+	void removeFileFromSystem(const eElement& that)
+	{
+		baseElement->removeFileFromSystem(that.baseElement);
+	}
+
+	virtual void rename(const std::string& _newName) const
+	{
+		baseElement->rename(_newName);
+	}
+
+	void move(eElement* _file, eElement* _to)
+	{
+		
+	}
+
 private:
 	iBaseFileComponent* baseElement;
 };

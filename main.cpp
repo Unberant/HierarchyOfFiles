@@ -23,15 +23,15 @@ int main()
 	eElement leaf3(new eFileLeaf("root1/branch1/", "leaf3.c"));
 	eElement leaf4(new eFileLeaf("root1/branch2/", "leaf4.cpp"));
 
-	tree1.addToFolder(branch1);
-	branch1.addToFolder(leaf2);
-	branch1.addToFolder(leaf3);
+	tree1.addConnection(branch1);
+	branch1.addConnection(leaf2);
+	branch1.addConnection(leaf3);
 
-	tree1.addToFolder(leaf1);
+	tree1.addConnection(leaf1);
 
-	tree1.addToFolder(branch2);
-	branch2.addToFolder(branch3);
-	branch2.addToFolder(leaf4);
+	tree1.addConnection(branch2);
+	branch2.addConnection(branch3);
+	branch2.addConnection(leaf4);
 
 	tree1.printDescription();
 	std::cout << "\n============\n";
@@ -60,10 +60,32 @@ int main()
 	//std::cout << "in tree1 " << tree1.getNumberOfFiles() << std::endl; // 5.5
 	//std::cout << "in branch2 " << branch2.getNumberOfFiles() << std::endl; // 5.5
 
-	//eElement tree2(eElement::createFolder("", "root2")); // optional initialization option
-	//eElement new_leaf1(eElement::createFile("root2/", "new_leaf1.txt",0));
-	//tree2.addToFolder(new_leaf1);
-	//tree2.printDescription();
+	//eElement branch4 = tree1.createFolder("root1/", "branch4"); // 6
+	//eElement leaf5 = branch4.creteFile("root1/branch4/", "leaf.c", 10); // 7
+	//std::cout << "\n============\n";
+	//tree1.printDescription();
+	//std::cout << "\n============\n";
+	//branch4.printDescription();
+
+	//leaf1.modifyFileSize(10); // 8
+	//leaf1.printCreationDate();
+	//leaf1.printLastModificationDate();
+
+	//std::cout << " \n[Starting Situation]\n"; // 9
+	//tree1.printDescription();
+	//tree1.deleteConnection(leaf4);
+	//std::cout << " \n[Delete connection with leaf4, but file still exist]\n";
+	//tree1.printDescription();
+	//tree1.removeFileFromSystem(branch3);
+	//std::cout << "\n[delete branch4, Delete connection with branch, Delete folder from computer]\n";
+	//tree1.printDescription();
+
+	//branch1.rename("branch1_new"); // 10
+	//leaf1.rename("not.txt.file.tnt");
+	//tree1.printDescription();
+
+	leaf4.removeFileFromSystem(tree1);
+	tree1.printDescription();
 
 
 }
