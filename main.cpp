@@ -1,5 +1,12 @@
 #include "FilesHierarchyPattern.h"
 
+// explanation for findIn(name_mask) method:
+// you can use \? - match any single character(letter, digit, whitespace, everything)
+// also \* represent any number of any characters, but not less than 1
+// for example ".\*" - find any file with any continuation after the dot
+// "le\?f" - can find: leaf, le1f, le-f 
+
+
 int main()
 {
 	eElement tree1(new eFolderComposite("root1"));
@@ -26,6 +33,9 @@ int main()
 	branch3.addConnection(leaf5);
 
 	tree1.printDescription();
+	std::cout << "\n============\n";
+	eElement::printVector(eElement::findIn(tree1, "leaf\?.c"));
+	eElement::printVector(eElement::findIn(leaf1, ".\*"));
 	std::cout << "\n============\n";
 
 	std::cout << tree1.getRootFolder() << std::endl; // 3 
@@ -81,5 +91,10 @@ int main()
 
 	eElement branch_moved = branch2.moveHere(branch1); // 12
 	branch_moved.printDescription();
+
+	std::cout << "\n============\n";
+	tree1.printDescription();
+
 }
+
 
