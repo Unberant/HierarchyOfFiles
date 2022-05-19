@@ -133,15 +133,13 @@ iBaseFileComponent* eFileLeaf::moveHere(iBaseFileComponent* _objectToMove)
 	return nullptr;
 }
 
-iBaseFileComponent* eFileLeaf::findIn(std::string name_mask)
+std::vector<iBaseFileComponent*> eFileLeaf::findIn(std::string name_mask) 
 {
-	if (this->getName() == name_mask)
-	{
-		std::cout << "file name:" << this->getName() << ", name mask:" << name_mask << std::endl;
-		return this;
-	}
-	else
-		return nullptr;
+	std::vector<ptrComponent> found_component;
+	if (isPatternIn(this->getName(),name_mask))
+		found_component.push_back(this);
+	
+	return found_component;
 }
 
 iBaseFileComponent* eFileLeaf::createFolder(std::string _path, std::string _folderName)

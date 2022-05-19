@@ -2,14 +2,6 @@
 //===iBaseFileComponent:: static
 int iBaseFileComponent::nestingLevel = 0;
 
-static std::vector<iBaseFileComponent*> findIn(iBaseFileComponent* _folder, std::string name_mask)
-{
-	std::vector<iBaseFileComponent*> allDetections;
-
-	_folder->findIn(name_mask);
-
-}
-
 
 //===iBaseFileComponent:: public level
 iBaseFileComponent::iBaseFileComponent(std::string _path)

@@ -190,21 +190,24 @@ void eFolderComposite::createFilesInSystem(const ptrComponent _componentToCopy) 
 	fs::copy(_componentToCopy->getFullPath(), newPath, copyOptions);
 }
 
-iBaseFileComponent* eFolderComposite::findIn(std::string name_mask)
+std::vector<iBaseFileComponent*> eFolderComposite::findIn(std::string name_mask)
 {
-	std::cout << "folder name:" << this->getName() << ", name mask:" << name_mask << std::endl;
-
+	//std::cout << "folder name:" << this->getName() << ", name mask:" << name_mask << std::endl;
+	std::vector<ptrComponent> found_components;
 	Iterator<iBaseFileComponent, std::list<ptrComponent>>* it = create_iterator();
 	for (it->first(); !it->isDone(); it->next())
 	{
-		if (it->current()->getName() == name_mask)
-		{
-			std::cout << "folder name:" << it->current()->getName() << ", name mask:" << name_mask << std::endl;
-			return  it->current()->findIn(name_mask);
-		}
-		else
-			return nullptr;
+		std::vector<ptrComponent> internal_components(it->current()->findIn(name_mask));
+
+		if (it->current()->isFolder())
+			if (isPatternIn(it->current()->getName(), name_mask))
+				found_components.push_back(it->current());
+
+		found_components.insert(found_components.end(),
+								internal_components.begin(),
+								internal_components.end());
 	}
+	return found_components;
 }
 
 iBaseFileComponent* eFolderComposite::createFolder(std::string _path, std::string _folderName)

@@ -6,43 +6,65 @@
 #include <fstream>
 #include <list>
 #include <string>
-#include <functional>
-
-const std::string COPY_LABEL = "-Copy";
-
+#include <regex>
 typedef unsigned int unInt;
 typedef std::filesystem::file_time_type timeInFile;
+namespace fs = std::filesystem;
+using namespace std::chrono_literals;
 
+const std::string COPY_LABEL = "-Copy";
 enum invalidCharacters
 {
-	SLASH	= '\\',
+	SLASH		= '\\',
 	SEMI_COLON	= ';',
-	COLON	= ':',
+	COLON		= ':',
 	ASTERISK	= '*',
 	QUESTION_MARK	= '?',
 	LESS_THAN	= '<',
 	GREATER_THAN	= '>',
-	PIPE	= '|',
-	ACUTE	= '`',
-	QUOTE	= '"',
+	PIPE		= '|',
+	ACUTE		= '`',
+	QUOTE		= '"',
 	APOSTROPHE	= '\''
 };
 
-namespace fs = std::filesystem;
-using namespace std::chrono_literals;
-
-
 template <typename TP>
-std::time_t to_time_t(TP tp)
+inline std::time_t to_time_t(TP tp)
 {
 	using namespace std::chrono;
-	auto sctp = time_point_cast<system_clock::duration>
-										(tp - TP::clock::now() + system_clock::now());
+	auto sctp = time_point_cast<system_clock::duration> (tp - TP::clock::now() + system_clock::now());
 	return system_clock::to_time_t(sctp);
+}
+
+inline bool isPatternIn(const std::string& name, const std::string& name_mask)
+{
+	size_t starsIndex = 0;
+	std::string regexMask = name_mask;
+	for (auto& character : regexMask)
+	{
+		if (character == '\?')
+			character = '.';
+		if (character == '\*')
+		{
+			regexMask.erase(starsIndex, 1);
+			regexMask.insert(starsIndex, ".{1,}");
+		}
+		++starsIndex;
+	}
+	const std::regex mask(regexMask);
+
+	//std::cout << "==========================Results============================== \n";
+	//std::cout << "search([" << name_mask << "] in " << sur << ") it's " << std::boolalpha << regex_search(sur, mask) << std::endl;
+
+	if (std::regex_search(name, mask))
+		return true;
+	else
+		return false;
 }
 
 struct eFileData
 {
+public:
 	eFileData() = default;
 	eFileData(std::string _name, std::string _extensionWithoutDot)
 	{
@@ -158,14 +180,25 @@ public:
 	virtual ptrComponent copyHere (ptrComponent _objectToCopy)	= 0;
 	virtual ptrComponent moveHere (ptrComponent _objectToMove)	= 0;
 
-	virtual ptrComponent findIn (std::string name_mask)	= 0;
+	virtual std::vector<ptrComponent> findIn (std::string name_mask)	= 0;
 	
 	virtual ptrComponent createFolder (std::string _path, std::string _folderName)	= 0;
 	virtual ptrComponent createFolder (std::string _fullPath)	= 0;
 	virtual ptrComponent createFile (std::string _path, std::string _fileName, unInt _size)	= 0;
 	virtual ptrComponent createFile (std::string _path)	= 0;
 
-	static std::vector<ptrComponent> findIn(ptrComponent _folder, std::string name_mask);
+	static std::vector<ptrComponent> findIn (ptrComponent _folder, const std::string& name_mask)
+	{
+		std::vector<ptrComponent> found_components;
+		if (_folder->isFolder())
+			found_components = _folder->findIn(name_mask);
+
+		else
+			if (isPatternIn(_folder->getName(), name_mask))
+				found_components.push_back(_folder);
+
+		return found_components;
+	}
 
 protected:
 	
@@ -218,7 +251,7 @@ public:
 	ptrComponent	copyHere(ptrComponent _objectToCopy)	override;
 	ptrComponent	moveHere(ptrComponent _objectToMove)	override;
 
-	ptrComponent	findIn	(std::string name_mask)	override;
+	std::vector<ptrComponent> findIn (std::string name_mask)	override;
 
 	ptrComponent	createFolder(std::string _path, std::string _folderName)	override;
 	ptrComponent	createFolder(std::string _fullPath)	override;
@@ -234,7 +267,6 @@ private:
 	std::list<ptrComponent> children;
 	std::string	folderName;
 };
-
 
 class eFileLeaf : public  iBaseFileComponent
 {
@@ -269,7 +301,7 @@ public:
 
 	ptrComponent	moveHere(ptrComponent _objectToMove)	override;
 
-	ptrComponent	findIn(std::string name_mask)	override;
+	std::vector<ptrComponent> findIn(std::string name_mask)	override;
 
 	ptrComponent	createFolder(std::string _path, std::string _folderName)	override;
 	ptrComponent	createFolder(std::string _fullPath)	override;
@@ -285,7 +317,6 @@ private:
 
 	eFileData file;
 };
-
 
 class eElement {
 public:
@@ -348,18 +379,20 @@ public:
 
 	static std::vector<eElement> findIn(const eElement &_folder, const std::string& name_mask)
 	{
-		std::vector<eElement> components;
+		std::vector<eElement> found_components;
 		for (auto const component : iBaseFileComponent::findIn(_folder.baseElement, name_mask))
 		{
-			components.push_back(component);
+			found_components.emplace_back(component);
 		}
-		return components;
+		return found_components;
 	}
-	static void printCollection(const std::vector<eElement> &_collection)
+
+	static void printVector (const std::vector<eElement>& _collection)
 	{
 		for (auto const &component : _collection)
 		{
-			std::cout << component.baseElement->getName() << std::endl;
+			std::cout << "file name:" << component.baseElement->getName();
+			std::cout << ", full file path:" << component.baseElement->getFullPath() << std::endl;
 		}
 	}
 
